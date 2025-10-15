@@ -24,7 +24,12 @@ import {
   bitbucketAuthApiRef,
   bitbucketServerAuthApiRef,
   openshiftAuthApiRef,
+  ApiRef,
+  ProfileInfoApi,
+  BackstageIdentityApi,
+  SessionApi,
 } from '@backstage/core-plugin-api';
+import { asgardeoOidcAuthApiRef } from './apis';
 
 export const providers = [
   {
@@ -80,5 +85,13 @@ export const providers = [
     title: 'OpenShift',
     message: 'Sign In using OpenShift',
     apiRef: openshiftAuthApiRef,
+  },
+  {
+    id: 'asgardeo',
+    title: 'Asgardeo',
+    message: 'Sign in using Asgardeo',
+    apiRef: asgardeoOidcAuthApiRef as unknown as ApiRef<
+      ProfileInfoApi & BackstageIdentityApi & SessionApi
+    >,
   },
 ];

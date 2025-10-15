@@ -2700,7 +2700,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@backstage/backend-plugin-api@workspace:^, @backstage/backend-plugin-api@workspace:packages/backend-plugin-api":
+"@backstage/backend-plugin-api@npm:^1.4.3, @backstage/backend-plugin-api@workspace:^, @backstage/backend-plugin-api@workspace:packages/backend-plugin-api":
   version: 0.0.0-use.local
   resolution: "@backstage/backend-plugin-api@workspace:packages/backend-plugin-api"
   dependencies:
@@ -2723,7 +2723,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@backstage/backend-test-utils@workspace:^, @backstage/backend-test-utils@workspace:packages/backend-test-utils":
+"@backstage/backend-test-utils@npm:^1.9.0, @backstage/backend-test-utils@workspace:^, @backstage/backend-test-utils@workspace:packages/backend-test-utils":
   version: 0.0.0-use.local
   resolution: "@backstage/backend-test-utils@workspace:packages/backend-test-utils"
   dependencies:
@@ -2823,7 +2823,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@backstage/cli@workspace:*, @backstage/cli@workspace:^, @backstage/cli@workspace:packages/cli":
+"@backstage/cli@npm:^0.34.2, @backstage/cli@workspace:*, @backstage/cli@workspace:^, @backstage/cli@workspace:packages/cli":
   version: 0.0.0-use.local
   resolution: "@backstage/cli@workspace:packages/cli"
   dependencies:
@@ -3765,6 +3765,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@backstage/plugin-auth-backend-module-asgardeo@workspace:^, @backstage/plugin-auth-backend-module-asgardeo@workspace:plugins/auth-backend-module-asgardeo":
+  version: 0.0.0-use.local
+  resolution: "@backstage/plugin-auth-backend-module-asgardeo@workspace:plugins/auth-backend-module-asgardeo"
+  dependencies:
+    "@backstage/backend-plugin-api": "npm:^1.4.3"
+    "@backstage/backend-test-utils": "npm:^1.9.0"
+    "@backstage/cli": "npm:^0.34.2"
+    "@backstage/plugin-auth-backend-module-oidc-provider": "npm:^0.4.7"
+    "@backstage/plugin-auth-node": "workspace:^"
+    "@types/passport-oauth2": "npm:^1.8.0"
+    passport-oauth2: "npm:^1.8.0"
+  languageName: unknown
+  linkType: soft
+
 "@backstage/plugin-auth-backend-module-atlassian-provider@workspace:plugins/auth-backend-module-atlassian-provider":
   version: 0.0.0-use.local
   resolution: "@backstage/plugin-auth-backend-module-atlassian-provider@workspace:plugins/auth-backend-module-atlassian-provider"
@@ -4044,7 +4058,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@backstage/plugin-auth-backend-module-oidc-provider@workspace:plugins/auth-backend-module-oidc-provider":
+"@backstage/plugin-auth-backend-module-oidc-provider@npm:^0.4.7, @backstage/plugin-auth-backend-module-oidc-provider@workspace:plugins/auth-backend-module-oidc-provider":
   version: 0.0.0-use.local
   resolution: "@backstage/plugin-auth-backend-module-oidc-provider@workspace:plugins/auth-backend-module-oidc-provider"
   dependencies:
@@ -20564,14 +20578,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/passport-oauth2@npm:*, @types/passport-oauth2@npm:^1.4.11, @types/passport-oauth2@npm:^1.4.15":
-  version: 1.4.17
-  resolution: "@types/passport-oauth2@npm:1.4.17"
+"@types/passport-oauth2@npm:*, @types/passport-oauth2@npm:^1.4.11, @types/passport-oauth2@npm:^1.4.15, @types/passport-oauth2@npm:^1.8.0":
+  version: 1.8.0
+  resolution: "@types/passport-oauth2@npm:1.8.0"
   dependencies:
     "@types/express": "npm:*"
     "@types/oauth": "npm:*"
     "@types/passport": "npm:*"
-  checksum: 10/4c5d2d6f717bb0b3d049669e47ca27cb166cbbef2073dccd302b10e62936c9e392074acabe6cb593f7eeb37a6a3cf81b9d3a4f35a46018a6645ac37d0f1706cb
+  checksum: 10/f874fb3c8646a720c4ae2b7da905b9db03e19617981e42c64b1dbe3313e7df9ab66682de41538db3279e1805b146ba6fc35902462c1858d605c30bb20cac7609
   languageName: node
   linkType: hard
 
@@ -29657,6 +29671,7 @@ __metadata:
     "@backstage/cli": "workspace:^"
     "@backstage/plugin-app-backend": "workspace:^"
     "@backstage/plugin-auth-backend": "workspace:^"
+    "@backstage/plugin-auth-backend-module-asgardeo": "workspace:^"
     "@backstage/plugin-auth-backend-module-github-provider": "workspace:^"
     "@backstage/plugin-auth-backend-module-guest-provider": "workspace:^"
     "@backstage/plugin-auth-backend-module-openshift-provider": "workspace:^"
