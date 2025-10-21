@@ -47,6 +47,7 @@ export interface OAuthAuthenticatorScopeOptions {
 
 /** @public */
 export interface OAuthAuthenticatorStartInput {
+  callbackUrl: any;
   scope: string;
   state: string;
   req: Request;
@@ -54,6 +55,8 @@ export interface OAuthAuthenticatorStartInput {
 
 /** @public */
 export interface OAuthAuthenticatorAuthenticateInput {
+  query: { code: any };
+  callbackUrl: any;
   req: Request;
 }
 

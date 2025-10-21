@@ -13,259 +13,211 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createBackendModule } from '@backstage/backend-plugin-api';
+
+import {
+  createBackendModule,
+  coreServices,
+} from '@backstage/backend-plugin-api';
 import {
   authProvidersExtensionPoint,
-  createOAuthAuthenticator,
   createOAuthProviderFactory,
-  PassportOAuthAuthenticatorHelper,
-  PassportOAuthDoneCallback,
 } from '@backstage/plugin-auth-node';
-import { Strategy as OAuth2Strategy } from 'passport-oauth2';
+import { OAuth2 } from 'oauth';
+import type {
+  OAuthAuthenticator,
+  OAuthAuthenticatorAuthenticateInput,
+  OAuthAuthenticatorStartInput,
+} from '@backstage/plugin-auth-node';
+import type { Profile as PassportProfile } from 'passport';
 
-const asgardeoAuthenticator = createOAuthAuthenticator({
-  defaultProfileTransform:
-    PassportOAuthAuthenticatorHelper.defaultProfileTransform,
-  scopes: {
-    required: ['openid', 'profile', 'email'],
-  },
-  initialize({ callbackUrl, config }) {
-    console.log('🔧 Initializing Asgardeo authenticator...');
-    console.log('📍 Callback URL:', callbackUrl);
+type OAuthCtx = Parameters<
+  OAuthAuthenticator<unknown, PassportProfile>['start']
+>[1];
+type OAuthAuthenticateCtx = Parameters<
+  OAuthAuthenticator<OAuthCtx, PassportProfile>['authenticate']
+>[1];
 
-    const clientID = config.getString('clientId');
-    const clientSecret = config.getString('clientSecret');
-    const authorizationURL = config.getString('authorizationUrl');
-    const tokenURL = config.getString('tokenUrl');
-    const userInfoURL = config.getString('userInfoUrl');
+type PassportProfileWithJson = PassportProfile & {
+  _json?: Record<string, unknown>;
+};
 
-    console.log('⚙️  Config loaded:', {
-      clientID: `${clientID.substring(0, 10)}...`,
-      authorizationURL,
-      tokenURL,
-      userInfoURL,
-    });
-
-    const strategy = new OAuth2Strategy(
-      {
-        clientID,
-        clientSecret,
-        callbackURL: callbackUrl,
-        authorizationURL,
-        tokenURL,
-        scope: ['openid', 'profile', 'email'],
-      },
-      (
-        accessToken: string,
-        refreshToken: string,
-        params: any,
-        fullProfile: any,
-        done: PassportOAuthDoneCallback,
-      ) => {
-        console.log('🎫 OAuth callback received');
-        console.log('✅ Access token received:', accessToken ? 'Yes' : 'No');
-        console.log('🔄 Refresh token received:', refreshToken ? 'Yes' : 'No');
-        console.log('📦 Params:', params);
-
-        done(undefined, {
-          fullProfile,
-          accessToken,
-          params,
-        });
-      },
-    );
-
-    // Override userProfile to fetch from Asgardeo's userinfo endpoint with proper headers
-    strategy.userProfile = async function (accessToken: string, done: any) {
-      console.log('👤 Fetching user profile from:', userInfoURL);
-      console.log(
-        '🔑 Using access token:',
-        `${accessToken.substring(0, 20)}...`,
-      );
-
-      try {
-        // Use fetch instead of OAuth2's get method for better control over headers
-        const response = await fetch(userInfoURL, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-          },
-        });
-
-        console.log('📡 Response status:', response.status);
-        console.log(
-          '📡 Response headers:',
-          Object.fromEntries(response.headers.entries()),
-        );
-        console.log('📡 Response content:', response);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ Error response:', errorText);
-          throw new Error(
-            `Failed to fetch user profile: ${response.status} ${errorText}`,
-          );
-        }
-
-        const profile = await response.json();
-        console.log('📋 Parsed profile:', profile);
-
-        // Transform Asgardeo profile to Passport format
-        const passportProfile = {
-          provider: 'asgardeo',
-          id: profile.sub,
-          displayName:
-            profile.name ||
-            profile.displayName ||
-            profile.username ||
-            profile.email,
-          username: profile.username || profile.email?.split('@')[0],
-          // eslint-disable-next-line no-nested-ternary
-          emails: profile.email
-            ? [{ value: profile.email }]
-            : profile.username?.includes('@')
-            ? [{ value: profile.username }]
-            : [],
-          email:
-            profile.email ||
-            (profile.username?.includes('@') ? profile.username : undefined),
-          name: {
-            familyName: profile.family_name,
-            givenName: profile.given_name,
-          },
-          _raw: JSON.stringify(profile),
-          _json: profile,
-        };
-
-        console.log('✨ Transformed profile:', {
-          id: passportProfile.id,
-          displayName: passportProfile.displayName,
-          email: passportProfile.email,
-          username: passportProfile.username,
-        });
-
-        done(null, passportProfile);
-      } catch (error) {
-        console.error('❌ Error fetching user profile:', error);
-        done(error);
-      }
-    };
-
-    return PassportOAuthAuthenticatorHelper.from(strategy);
-  },
-  async start(input, helper) {
-    console.log('🚀 Starting OAuth flow...');
-    const result = await helper.start(input, {
-      accessType: 'offline',
-      prompt: 'consent',
-    });
-    console.log('✅ OAuth flow started successfully');
-    return result;
-  },
-  async authenticate(input, helper) {
-    console.log('🔐 Authenticating user...');
-    try {
-      const result = await helper.authenticate(input);
-      console.log('✅ Authentication successful');
-      console.log('👤 Authenticated profile:', result.fullProfile);
-      return result;
-    } catch (error) {
-      console.error('❌ Authentication failed:', error);
-      throw error;
-    }
-  },
-  async refresh(input, helper) {
-    console.log('🔄 Refreshing session...');
-    console.log('📥 Refresh input:', {
-      hasRefreshToken: !!input.refreshToken,
-      scope: input.scope,
-    });
-
-    try {
-      const result = await helper.refresh(input);
-      console.log('✅ Session refreshed successfully');
-      return result;
-    } catch (error) {
-      console.error('❌ Session refresh failed:', error);
-      throw error;
-    }
-  },
-});
-
-export const authModuleAsgardeoProvider = createBackendModule({
+export const asgardeoAuthProvider = createBackendModule({
   pluginId: 'auth',
   moduleId: 'asgardeo-provider',
   register(reg) {
     reg.registerInit({
       deps: {
         providers: authProvidersExtensionPoint,
+        logger: coreServices.logger,
       },
-      async init({ providers }) {
-        console.log('🎯 Registering Asgardeo auth provider...');
-
+      async init({ providers, logger }) {
         providers.registerProvider({
           providerId: 'asgardeo',
           factory: createOAuthProviderFactory({
-            authenticator: asgardeoAuthenticator,
-            signInResolver: async (info, ctx) => {
-              console.log('🔍 Resolving sign-in...');
-              console.log(
-                '📋 Profile info received:',
-                JSON.stringify(info.profile, null, 2),
-              );
-
-              const { profile } = info;
-
-              // Check for email in different possible locations, fallback to username if it looks like an email
-              const email = profile.email || '' || null;
-
-              const displayName = profile.displayName || email || 'User';
-
-              console.log('📧 Email extracted:', email);
-              console.log('👤 Display name:', displayName);
-
-              if (!email) {
-                console.error('❌ No email found in profile');
-                console.error(
-                  '📋 Full profile:',
-                  JSON.stringify(profile, null, 2),
+            authenticator: {
+              defaultProfileTransform: async (result: any) => {
+                logger.info(
+                  `🔍 Profile transformation: ${JSON.stringify(result)}`,
                 );
-                throw new Error(
-                  `User profile does not contain an email or email-like username. Profile: ${JSON.stringify(
-                    profile,
-                  )}`,
+
+                return {
+                  profile: {
+                    email: result.session.email || result.session.sub,
+                    displayName: result.session.name || result.session.username,
+                    picture: result.session.picture,
+                  },
+                };
+              },
+              initialize({ config }) {
+                const clientId = config.getString('clientId');
+                const clientSecret = config.getString('clientSecret');
+                const callbackUrl = config.getString('callbackUrl');
+                const authorizationUrl = config.getString('authorizationUrl');
+                const tokenUrl = config.getString('tokenUrl');
+
+                return new OAuth2(
+                  clientId,
+                  clientSecret,
+                  '',
+                  authorizationUrl,
+                  tokenUrl,
+                  {
+                    redirect_uri: callbackUrl,
+                  },
                 );
-              }
+              },
+              async start(input: OAuthAuthenticatorStartInput, ctx: OAuthCtx) {
+                const scopes = ctx.config.getOptionalStringArray('scopes') ?? [
+                  'openid',
+                  'profile',
+                  'email',
+                ];
 
-              // Create user identifier from email (username before @)
-              const userId = email.split('@')[0];
+                return {
+                  url: ctx.strategy.getAuthorizeUrl({
+                    redirect_uri: input.callbackUrl,
+                    scope: scopes.join(' '),
+                    state: input.state,
+                  }),
+                  status: 302,
+                };
+              },
+              async authenticate(
+                input: OAuthAuthenticatorAuthenticateInput,
+                ctx: OAuthAuthenticateCtx,
+              ) {
+                const { code } = input.query;
 
-              console.log('🎫 Issuing token for user:', userId);
-              console.log(
-                '✅ Allowing any authenticated user (no catalog lookup)',
-              );
+                if (!code) {
+                  throw new Error('Authorization code not found in callback');
+                }
 
-              // Issue a token WITHOUT checking the catalog
-              // This allows any authenticated user from Asgardeo to access Backstage
-              const signInResult = await ctx.issueToken({
-                claims: {
-                  sub: `user:default/${userId}`, // ✅ Full entity ref format
-                  ent: [`user:default/${userId}`], // entities - user entity reference
-                },
-              });
+                const accessToken = await new Promise<string>(
+                  (resolve, reject) => {
+                    ctx.strategy.getOAuthAccessToken(
+                      code as string,
+                      {
+                        grant_type: 'authorization_code',
+                        redirect_uri: input.callbackUrl,
+                      },
+                      (err: any, token: string) => {
+                        if (err) {
+                          reject(err);
+                        } else {
+                          resolve(token);
+                        }
+                      },
+                    );
+                  },
+                );
 
-              console.log('✅ Token issued successfully for:', userId);
-              return signInResult;
+                const userInfoUrl = ctx.config.getString('userInfoUrl');
+                const userInfoResponse = await fetch(userInfoUrl, {
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                });
+
+                if (!userInfoResponse.ok) {
+                  throw new Error(
+                    `Failed to fetch user info: ${userInfoResponse.status}`,
+                  );
+                }
+
+                const userInfo = await userInfoResponse.json();
+
+                logger.info(`👤 User info: ${JSON.stringify(userInfo)}`);
+
+                const fullProfile: PassportProfileWithJson = {
+                  provider: 'asgardeo',
+                  id:
+                    userInfo.sub ??
+                    userInfo.id ??
+                    userInfo.email ??
+                    userInfo.username ??
+                    '',
+                  displayName:
+                    userInfo.name ??
+                    userInfo.username ??
+                    userInfo.preferred_username ??
+                    userInfo.email ??
+                    '',
+                  emails: userInfo.email
+                    ? [{ value: userInfo.email }]
+                    : undefined,
+                  photos: userInfo.picture
+                    ? [{ value: userInfo.picture }]
+                    : undefined,
+                  _json: userInfo,
+                };
+
+                return {
+                  fullProfile,
+                  session: {
+                    ...userInfo,
+                    accessToken,
+                  },
+                };
+              },
+              async refresh() {
+                throw new Error('Refresh not supported');
+              },
+            },
+            signInResolverFactories: {
+              emailLocalPartMatchingUserEntityName: () => async (info, ctx) => {
+                const { profile } = info;
+
+                logger.info(
+                  `🔍 Sign-in resolver: emailLocalPartMatchingUserEntityName`,
+                );
+                logger.info(`📧 Profile: ${JSON.stringify(profile)}`);
+
+                if (!profile.email) {
+                  throw new Error('Asgardeo profile does not contain an email');
+                }
+
+                const emailLocalPart = profile.email.split('@')[0];
+                const name = emailLocalPart
+                  .toLowerCase()
+                  .replace(/[^a-z0-9_-]/g, '_');
+
+                logger.info(
+                  `✅ Issuing token for user without catalog requirement: ${name}`,
+                );
+
+                return ctx.issueToken({
+                  claims: {
+                    sub: name,
+                    ent: [`user:default/${name}`],
+                  },
+                });
+              },
             },
           }),
         });
-
-        console.log('✅ Asgardeo provider registered successfully');
       },
     });
   },
 });
 
-export default authModuleAsgardeoProvider;
+export default asgardeoAuthProvider;
