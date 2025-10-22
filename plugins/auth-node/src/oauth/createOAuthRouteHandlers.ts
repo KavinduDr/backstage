@@ -152,6 +152,7 @@ export function createOAuthRouteHandlers<TProfile>(
           req,
           scope,
           state: encodeOAuthState(transformedState),
+          callbackUrl: undefined,
         },
         authenticatorCtx,
       );
@@ -195,7 +196,13 @@ export function createOAuthRouteHandlers<TProfile>(
         }
 
         const result = await authenticator.authenticate(
-          { req },
+          {
+            req,
+            query: {
+              code: undefined,
+            },
+            callbackUrl: undefined,
+          },
           authenticatorCtx,
         );
         const { profile } = await profileTransform(result, resolverContext);

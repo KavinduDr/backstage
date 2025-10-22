@@ -154,6 +154,10 @@ describe('openshiftAuthenticator', () => {
 
     beforeEach(() => {
       handlerRequest = {
+        query: {
+          code: 'authorization_code',
+        },
+        callbackUrl: 'https://backstage.test/callback',
         req: {
           method: 'GET',
           query: {

@@ -359,6 +359,10 @@ describe('oidcAuthenticator', () => {
 
     beforeEach(() => {
       handlerRequest = {
+        query: {
+          code: undefined,
+        },
+        callbackUrl: undefined,
         req: {
           method: 'GET',
           url: `https://test?code=authorization_code&state=${encodeOAuthState(
@@ -466,6 +470,10 @@ describe('oidcAuthenticator', () => {
                 },
               },
             } as unknown as express.Request,
+            query: {
+              code: undefined,
+            },
+            callbackUrl: undefined,
           },
           implementation,
         ),
@@ -482,6 +490,10 @@ describe('oidcAuthenticator', () => {
               method: 'GET',
               url: 'https://test.com',
             } as unknown as express.Request,
+            query: {
+              code: undefined,
+            },
+            callbackUrl: undefined,
           },
           implementation,
         ),

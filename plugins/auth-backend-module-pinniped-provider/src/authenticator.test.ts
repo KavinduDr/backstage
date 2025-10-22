@@ -385,6 +385,10 @@ describe('pinnipedAuthenticator', () => {
 
     beforeEach(() => {
       handlerRequest = {
+        query: {
+          code: 'authorization_code',
+        },
+        callbackUrl: 'https://backstage.test/callback',
         req: {
           method: 'GET',
           url: `https://test?code=authorization_code&state=${encodeOAuthState(
@@ -432,6 +436,10 @@ describe('pinnipedAuthenticator', () => {
     it('returns cluster-scoped ID token when audience is specified', async () => {
       oauthState.audience = 'test_cluster';
       handlerRequest = {
+        query: {
+          code: 'authorization_code',
+        },
+        callbackUrl: 'https://backstage.test/callback',
         req: {
           method: 'GET',
           url: `https://test?code=authorization_code&state=${encodeOAuthState(
@@ -497,6 +505,10 @@ describe('pinnipedAuthenticator', () => {
 
       oauthState.audience = 'test_cluster';
       handlerRequest = {
+        query: {
+          code: 'authorization_code',
+        },
+        callbackUrl: 'https://backstage.test/callback',
         req: {
           method: 'GET',
           url: `https://test?code=authorization_code&state=${encodeOAuthState(
@@ -537,6 +549,10 @@ describe('pinnipedAuthenticator', () => {
                 },
               },
             } as unknown as express.Request,
+            query: {
+              code: undefined,
+            },
+            callbackUrl: undefined,
           },
           authCtx,
         ),
@@ -553,6 +569,10 @@ describe('pinnipedAuthenticator', () => {
               method: 'GET',
               url: 'https://test.com',
             } as unknown as express.Request,
+            query: {
+              code: undefined,
+            },
+            callbackUrl: undefined,
           },
           authCtx,
         ),
@@ -628,6 +648,10 @@ describe('pinnipedAuthenticator', () => {
               },
             },
           } as unknown as express.Request,
+          query: {
+            code: undefined,
+          },
+          callbackUrl: undefined,
         },
         authCtx,
       );
@@ -682,6 +706,10 @@ describe('pinnipedAuthenticator', () => {
               },
             },
           } as unknown as express.Request,
+          query: {
+            code: undefined,
+          },
+          callbackUrl: undefined,
         },
         authCtx,
       );

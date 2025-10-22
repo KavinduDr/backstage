@@ -123,6 +123,7 @@ describe('microsoftAuthenticator', () => {
       const startRequest: OAuthAuthenticatorStartInput = {
         scope,
         state,
+        callbackUrl: 'https://backstage.test/callback',
         req: {
           method: 'GET',
           url: 'test',
@@ -152,6 +153,11 @@ describe('microsoftAuthenticator', () => {
     ): OAuthAuthenticatorAuthenticateInput => {
       const authCode = microsoftApi.generateAuthCode(scopeForRequest);
       return {
+        callbackUrl: 'https://backstage.test/callback',
+        query: {
+          code: authCode,
+          // state: encodeOAuthState(oauthState),
+        },
         req: {
           method: 'GET',
           url: 'test',

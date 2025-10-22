@@ -94,6 +94,8 @@ export class AsgardeoEntityProvider implements EntityProvider {
       schedule: options.schedule,
     };
 
+    console.log(providerConfig);
+
     return new AsgardeoEntityProvider(providerConfig, options.logger);
   }
 
@@ -189,19 +191,65 @@ export class AsgardeoEntityProvider implements EntityProvider {
   private async fetchUsers(accessToken: string): Promise<UserEntity[]> {
     const { orgUrl } = this.config;
 
-    const response = await fetch(`${orgUrl}/scim2/Users`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    // Try different API endpoints for user management
+    const endpoints = [
+      `${orgUrl}/scim2/Users`,
+      `${orgUrl}/scim/Users`,
+      `${orgUrl}/api/scim2/Users`,
+      `${orgUrl}/api/scim/Users`,
+    ];
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch users: ${response.status} ${response.statusText}`,
+    let response: Response | null = null;
+    let lastError: string = '';
+
+    for (const endpoint of endpoints) {
+      this.logger.debug(`Trying to fetch users from ${endpoint}`);
+
+      try {
+        response = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/scim+json',
+          },
+        });
+
+        if (response.ok) {
+          this.logger.info(`Successfully connected to ${endpoint}`);
+          break;
+        } else {
+          const errorText = await response.text();
+          lastError = `${endpoint}: ${response.status} ${response.statusText} - ${errorText}`;
+          this.logger.warn(`Failed to fetch from ${endpoint}: ${lastError}`);
+        }
+      } catch (error) {
+        lastError = `${endpoint}: ${error}`;
+        this.logger.warn(`Error fetching from ${endpoint}: ${error}`);
+      }
+    }
+
+    if (!response || !response.ok) {
+      this.logger.error(`All user endpoints failed. Last error: ${lastError}`);
+      this.logger.warn(
+        'This might be due to insufficient permissions or incorrect API endpoints.',
       );
+      this.logger.warn(
+        'Please check that your Asgardeo client has the necessary SCIM permissions.',
+      );
+
+      // Return empty array instead of throwing error to prevent catalog provider from failing
+      return [];
     }
 
     const data = await response.json();
+    this.logger.debug(
+      `Fetched ${data.Resources?.length || 0} users from Asgardeo`,
+    );
+
+    if (!data.Resources || !Array.isArray(data.Resources)) {
+      this.logger.warn('No users found in Asgardeo response');
+      return [];
+    }
 
     return data.Resources.map((user: AsgardeoUser) => this.transformUser(user));
   }
@@ -209,19 +257,65 @@ export class AsgardeoEntityProvider implements EntityProvider {
   private async fetchGroups(accessToken: string): Promise<GroupEntity[]> {
     const { orgUrl } = this.config;
 
-    const response = await fetch(`${orgUrl}/scim2/Groups`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    // Try different API endpoints for group management
+    const endpoints = [
+      `${orgUrl}/scim2/Groups`,
+      `${orgUrl}/scim/Groups`,
+      `${orgUrl}/api/scim2/Groups`,
+      `${orgUrl}/api/scim/Groups`,
+    ];
 
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch groups: ${response.status} ${response.statusText}`,
+    let response: Response | null = null;
+    let lastError: string = '';
+
+    for (const endpoint of endpoints) {
+      this.logger.debug(`Trying to fetch groups from ${endpoint}`);
+
+      try {
+        response = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/scim+json',
+          },
+        });
+
+        if (response.ok) {
+          this.logger.info(`Successfully connected to ${endpoint}`);
+          break;
+        } else {
+          const errorText = await response.text();
+          lastError = `${endpoint}: ${response.status} ${response.statusText} - ${errorText}`;
+          this.logger.warn(`Failed to fetch from ${endpoint}: ${lastError}`);
+        }
+      } catch (error) {
+        lastError = `${endpoint}: ${error}`;
+        this.logger.warn(`Error fetching from ${endpoint}: ${error}`);
+      }
+    }
+
+    if (!response || !response.ok) {
+      this.logger.error(`All group endpoints failed. Last error: ${lastError}`);
+      this.logger.warn(
+        'This might be due to insufficient permissions or incorrect API endpoints.',
       );
+      this.logger.warn(
+        'Please check that your Asgardeo client has the necessary SCIM permissions.',
+      );
+
+      // Return empty array instead of throwing error to prevent catalog provider from failing
+      return [];
     }
 
     const data = await response.json();
+    this.logger.debug(
+      `Fetched ${data.Resources?.length || 0} groups from Asgardeo`,
+    );
+
+    if (!data.Resources || !Array.isArray(data.Resources)) {
+      this.logger.warn('No groups found in Asgardeo response');
+      return [];
+    }
 
     return data.Resources.map((group: AsgardeoGroup) =>
       this.transformGroup(group),
@@ -235,8 +329,11 @@ export class AsgardeoEntityProvider implements EntityProvider {
       asgardeoUser.userName;
     const displayName = asgardeoUser.displayName || asgardeoUser.userName;
 
-    // Normalize email to valid entity name
-    const name = email.toLowerCase().replace(/[@.]/g, '_');
+    // Normalize email to valid entity name - match auth resolver logic
+    const emailLocalPart = email.split('@')[0];
+    const name = emailLocalPart.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+
+    this.logger.debug(`Transforming user: ${asgardeoUser.userName} -> ${name}`);
 
     return {
       apiVersion: 'backstage.io/v1alpha1',
@@ -291,9 +388,11 @@ export class AsgardeoEntityProvider implements EntityProvider {
         },
         children: [],
         members:
-          asgardeoGroup.members?.map(m =>
-            m.display.toLowerCase().replace(/[@.]/g, '_'),
-          ) || [],
+          asgardeoGroup.members?.map(m => {
+            // Match the same naming pattern as users
+            const emailLocalPart = m.display.split('@')[0];
+            return emailLocalPart.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+          }) || [],
       },
     };
   }

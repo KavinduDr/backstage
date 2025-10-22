@@ -64,9 +64,20 @@ export const createCacheMiddleware = ({
         typeof data === 'string' ? Buffer.from(data) : Buffer.from(data),
       );
       if (typeof encoding === 'function') {
-        return realWrite(data, encoding);
+        // Fix: Node.js expects callback to have (err?: Error | null)
+        // but our ErrorCallback is (err?: Error)
+        // So, wrap encoding to adapt possible 'null' err to 'undefined'
+        return realWrite(data, (err?: Error | null) =>
+          (encoding as ErrorCallback)(err === null ? undefined : err),
+        );
       }
-      return realWrite(data, encoding, callback);
+      return realWrite(
+        data,
+        encoding as BufferEncoding | undefined,
+        callback
+          ? (err?: Error | null) => callback(err === null ? undefined : err)
+          : undefined,
+      );
     };
 
     // When a socket is closed, if there were no errors and the data written

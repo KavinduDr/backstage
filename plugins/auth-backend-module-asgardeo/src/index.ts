@@ -20,4 +20,4 @@
  * @packageDocumentation
  */
 
-export { authModuleAsgardeoProvider as default } from './module';
+export { asgardeoAuthProvider as default } from './module';

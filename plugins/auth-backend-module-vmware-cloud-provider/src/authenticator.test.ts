@@ -360,7 +360,7 @@ describe('vmwareCloudAuthenticator', () => {
             req: {
               query: {},
             },
-          } as OAuthAuthenticatorStartInput,
+          } as unknown as OAuthAuthenticatorAuthenticateInput,
           authenticatorCtx,
         ),
       ).rejects.toThrow('requires session support');
@@ -374,7 +374,7 @@ describe('vmwareCloudAuthenticator', () => {
               query: {},
               session: fakeSession,
             },
-          } as OAuthAuthenticatorStartInput,
+          } as unknown as OAuthAuthenticatorAuthenticateInput,
           authenticatorCtx,
         ),
       ).rejects.toThrow('Unexpected redirect');
