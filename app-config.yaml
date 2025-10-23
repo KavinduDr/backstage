@@ -318,10 +318,15 @@ auth:
         userInfoUrl: ${AUTH_ASGARDEO_USER_INFO_URL}
         callbackUrl: ${AUTH_ASGARDEO_CALLBACK_URL}
         scopes: ${AUTH_ASGARDEO_SCOPES}
+        state: true
         signIn:
-          resolvers:
-            - resolver: emailLocalPartMatchingUserEntityName
-            - profileTransform: asgardeo
+          resolver:
+            [
+              {
+                resolver: 'emailMatchingUserEntityNameProfile',
+                profileTransform: 'asgardeo',
+              },
+            ]
     myproxy: {}
     guest: {}
 
