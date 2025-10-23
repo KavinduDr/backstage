@@ -64,7 +64,7 @@ export const asgardeoAuthProvider = createBackendModule({
                     tokenURL: tokenUrl,
                     passReqToCallback: false,
                     pkce: true,
-                    state: false,
+                    state: true,
                   },
                   async (
                     accessToken: string,

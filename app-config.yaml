@@ -163,13 +163,6 @@ catalog:
       plugins:
         - catalog
         - search
-    asgardeo:
-      orgUrl: https://api.asgardeo.io/t/starkindustriesdemo/
-      clientId: ${ASGARDEO_CATALOG_CLIENT_ID}
-      clientSecret: ${ASGARDEO_CATALOG_SECRET}
-      schedule:
-        frequency: { minutes: 30 }
-        timeout: { minutes: 10 }
   locations:
     # Add a location here to ingest it, for example from a URL:
     #
@@ -312,22 +305,16 @@ auth:
       development:
         clientId: ${AUTH_ASGARDEO_CLIENT_ID}
         clientSecret: ${AUTH_ASGARDEO_CLIENT_SECRET}
-        authorizationUrl: ${AUTH_ASGARDEO_AUTHORIZATION_URL}
         issuer: ${AUTH_ASGARDEO_ISSUER}
+        authorizationUrl: ${AUTH_ASGARDEO_AUTHORIZATION_URL}
         tokenUrl: ${AUTH_ASGARDEO_TOKEN_URL}
         userInfoUrl: ${AUTH_ASGARDEO_USER_INFO_URL}
         callbackUrl: ${AUTH_ASGARDEO_CALLBACK_URL}
         scopes: ${AUTH_ASGARDEO_SCOPES}
-        state: true
-        # pkce: true
         signIn:
           resolver:
-            [
-              {
-                resolver: 'emailMatchingUserEntityNameProfile',
-                profileTransform: 'asgardeo',
-              },
-            ]
+            - resolver: emailMatchingUserEntityNameProfile
+              profileTransform: asgardeo
     myproxy: {}
     guest: {}
 
