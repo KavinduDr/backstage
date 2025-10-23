@@ -54,6 +54,7 @@ const asgardeoAuthenticator = createOAuthAuthenticator({
         authorizationURL,
         tokenURL,
         scope: ['openid', 'profile', 'email'],
+        state: true,
       },
       (
         accessToken: string,
