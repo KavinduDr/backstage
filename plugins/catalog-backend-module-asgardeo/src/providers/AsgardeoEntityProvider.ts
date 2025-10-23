@@ -178,10 +178,24 @@ export class AsgardeoEntityProvider implements EntityProvider {
       body: 'grant_type=client_credentials&scope=internal_user_mgt_view internal_group_mgt_view',
     });
 
+    const contentType = response.headers.get('content-type') || '';
+
     if (!response.ok) {
+      const bodyText = await response.text();
+      this.logger.error(
+        `Failed to get access token: ${response.status} ${response.statusText} - ${bodyText}`,
+      );
       throw new Error(
         `Failed to get access token: ${response.status} ${response.statusText}`,
       );
+    }
+
+    if (!contentType.includes('application/json')) {
+      const bodyText = await response.text();
+      this.logger.error(
+        `Token endpoint returned non-json content-type=${contentType}. Body: ${bodyText}`,
+      );
+      throw new Error('Token endpoint returned unexpected non-JSON response');
     }
 
     const data = await response.json();
@@ -203,28 +217,22 @@ export class AsgardeoEntityProvider implements EntityProvider {
     let lastError: string = '';
 
     for (const endpoint of endpoints) {
-      this.logger.debug(`Trying to fetch users from ${endpoint}`);
-
       try {
         response = await fetch(endpoint, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/scim+json',
           },
         });
 
         if (response.ok) {
-          this.logger.info(`Successfully connected to ${endpoint}`);
           break;
         } else {
-          const errorText = await response.text();
-          lastError = `${endpoint}: ${response.status} ${response.statusText} - ${errorText}`;
+          lastError = `${response.status} ${response.statusText}`;
           this.logger.warn(`Failed to fetch from ${endpoint}: ${lastError}`);
         }
       } catch (error) {
-        lastError = `${endpoint}: ${error}`;
-        this.logger.warn(`Error fetching from ${endpoint}: ${error}`);
+        lastError = error.message;
+        this.logger.warn(`Error fetching from ${endpoint}: ${lastError}`);
       }
     }
 
@@ -241,13 +249,29 @@ export class AsgardeoEntityProvider implements EntityProvider {
       return [];
     }
 
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      this.logger.error(
+        `Unexpected non-JSON response from ${response.url || 'endpoint'} (${
+          response.status
+        }): ${text.slice(0, 1000)}`,
+      );
+      // Avoid JSON.parse crash; surface clearer message
+      throw new Error(
+        `Unexpected non-JSON response from Asgardeo users endpoint: ${response.status} ${response.statusText}`,
+      );
+    }
+
     const data = await response.json();
     this.logger.debug(
       `Fetched ${data.Resources?.length || 0} users from Asgardeo`,
     );
 
     if (!data.Resources || !Array.isArray(data.Resources)) {
-      this.logger.warn('No users found in Asgardeo response');
+      this.logger.warn(
+        'No users found or unexpected response structure from Asgardeo',
+      );
       return [];
     }
 
@@ -269,28 +293,22 @@ export class AsgardeoEntityProvider implements EntityProvider {
     let lastError: string = '';
 
     for (const endpoint of endpoints) {
-      this.logger.debug(`Trying to fetch groups from ${endpoint}`);
-
       try {
         response = await fetch(endpoint, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/scim+json',
           },
         });
 
         if (response.ok) {
-          this.logger.info(`Successfully connected to ${endpoint}`);
           break;
         } else {
-          const errorText = await response.text();
-          lastError = `${endpoint}: ${response.status} ${response.statusText} - ${errorText}`;
+          lastError = `${response.status} ${response.statusText}`;
           this.logger.warn(`Failed to fetch from ${endpoint}: ${lastError}`);
         }
       } catch (error) {
-        lastError = `${endpoint}: ${error}`;
-        this.logger.warn(`Error fetching from ${endpoint}: ${error}`);
+        lastError = error.message;
+        this.logger.warn(`Error fetching from ${endpoint}: ${lastError}`);
       }
     }
 
@@ -307,13 +325,28 @@ export class AsgardeoEntityProvider implements EntityProvider {
       return [];
     }
 
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      this.logger.error(
+        `Unexpected non-JSON response from ${response.url || 'endpoint'} (${
+          response.status
+        }): ${text.slice(0, 1000)}`,
+      );
+      throw new Error(
+        `Unexpected non-JSON response from Asgardeo groups endpoint: ${response.status} ${response.statusText}`,
+      );
+    }
+
     const data = await response.json();
     this.logger.debug(
       `Fetched ${data.Resources?.length || 0} groups from Asgardeo`,
     );
 
     if (!data.Resources || !Array.isArray(data.Resources)) {
-      this.logger.warn('No groups found in Asgardeo response');
+      this.logger.warn(
+        'No groups found or unexpected response structure from Asgardeo',
+      );
       return [];
     }
 

@@ -319,6 +319,7 @@ auth:
         callbackUrl: ${AUTH_ASGARDEO_CALLBACK_URL}
         scopes: ${AUTH_ASGARDEO_SCOPES}
         state: true
+        # pkce: true
         signIn:
           resolver:
             [
