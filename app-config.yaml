@@ -312,7 +312,7 @@ auth:
         callbackUrl: ${AUTH_ASGARDEO_CALLBACK_URL}
         scopes: ${AUTH_ASGARDEO_SCOPES}
         signIn:
-          resolver:
+          resolvers:
             - resolver: emailMatchingUserEntityNameProfile
               profileTransform: asgardeo
     myproxy: {}

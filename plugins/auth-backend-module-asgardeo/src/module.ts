@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { createBackendModule } from '@backstage/backend-plugin-api';
+import { createBackendModule, coreServices } from '@backstage/backend-plugin-api';
 import {
   authProvidersExtensionPoint,
+  commonSignInResolvers,
   createOAuthAuthenticator,
   createOAuthProviderFactory,
   PassportOAuthAuthenticatorHelper,
   PassportOAuthDoneCallback,
 } from '@backstage/plugin-auth-node';
+import { CatalogClient } from '@backstage/catalog-client';
 import { Strategy as OAuth2Strategy } from 'passport-oauth2';
+import { emailMatchingUserEntityNameProfileResolver } from './createUserIfMissingResolver';
 
 const asgardeoAuthenticator = createOAuthAuthenticator({
   defaultProfileTransform:
@@ -201,63 +204,74 @@ export const authModuleAsgardeoProvider = createBackendModule({
     reg.registerInit({
       deps: {
         providers: authProvidersExtensionPoint,
+        discovery: coreServices.discovery,
       },
-      async init({ providers }) {
+      async init({ providers, discovery }) {
         console.log('🎯 Registering Asgardeo auth provider...');
+
+        // Create a CatalogClient instance scoped to this backend using discovery
+        const catalogClient = new CatalogClient({ discoveryApi: discovery });
 
         providers.registerProvider({
           providerId: 'asgardeo',
           factory: createOAuthProviderFactory({
             authenticator: asgardeoAuthenticator,
-            signInResolver: async (info, ctx) => {
-              console.log('🔍 Resolving sign-in...');
-              console.log(
-                '📋 Profile info received:',
-                JSON.stringify(info.profile, null, 2),
-              );
+            // Provide resolver factories so the declarative resolver configured
+            // in app-config.local.yaml (emailMatchingUserEntityNameProfile) is used.
+            // The factory below closes over `catalogClient` so it can create
+            // entities when missing.
+            signInResolverFactories: {
+              emailMatchingUserEntityNameProfile: () => {
+                // SignInResolver receives a SignInInfo object as the first arg,
+                // which contains { profile, result } — not the profile directly.
+                return async (info: any, ctx: any) => {
+                  console.log(info);
+                  const profile = info?.profile ?? info;
+                  const email = profile?.email?.toLowerCase?.();
+                  if (!email) {
+                    throw new Error('No email in profile');
+                  }
 
-              const { profile } = info;
+                  // Try to find an existing User by spec.profile.email
+                  // Build filter and cast to any to satisfy the CatalogClient types in this repo
+                  const filter = [{ kind: 'User', 'spec.profile.email': email }] as any;
+                  const resp = await catalogClient.getEntities({ filter } as any);
+                  const found = resp.items?.[0];
 
-              // Check for email in different possible locations, fallback to username if it looks like an email
-              const email = profile.email || '' || null;
+                  if (found) {
+                    const entityRef = `${found.kind?.toLowerCase()}:${found.metadata?.name}`;
+                    return ctx.signInWithCatalogUser({ entityRef });
+                  }
 
-              const displayName = profile.displayName || email || 'User';
+                  // Not found - automatic entity creation via the public
+                  // CatalogClient is not supported. The backend catalog exposes
+                  // locations and entity providers as the standard ingestion
+                  // mechanism, so creating entities programmatically requires
+                  // backend-side processing or a dedicated entity-provider.
+                  //
+                  // For now, issue a token using a "dangerous fallback" entity
+                  // ref. This allows sign-in to proceed, but does NOT create a
+                  // catalog User. Longer-term options:
+                  //  - Implement an entity-provider that syncs Asgardeo users
+                  //    into the catalog (recommended for production).
+                  //  - Add a backend API that invokes the catalog processing
+                  //    orchestrator to add entities (more invasive).
+                  const safeName = email.replace(/[@.]/g, '-').replace(/[^a-z0-9-_]/gi, '').toLowerCase();
+                  const fallbackRef = `User:default/${safeName}`;
 
-              console.log('📧 Email extracted:', email);
-              console.log('👤 Display name:', displayName);
+                  // Log so operators can notice that the user was allowed to
+                  // sign in without an existing catalog entity.
+                  console.warn(
+                    `No catalog User found for email=${email}; issuing token for fallback entityRef=${fallbackRef} (no catalog entity created)`,
+                  );
 
-              if (!email) {
-                console.error('❌ No email found in profile');
-                console.error(
-                  '📋 Full profile:',
-                  JSON.stringify(profile, null, 2),
-                );
-                throw new Error(
-                  `User profile does not contain an email or email-like username. Profile: ${JSON.stringify(
-                    profile,
-                  )}`,
-                );
-              }
-
-              // Create user identifier from email (username before @)
-              const userId = email.split('@')[0];
-
-              console.log('🎫 Issuing token for user:', userId);
-              console.log(
-                '✅ Allowing any authenticated user (no catalog lookup)',
-              );
-
-              // Issue a token WITHOUT checking the catalog
-              // This allows any authenticated user from Asgardeo to access Backstage
-              const signInResult = await ctx.issueToken({
-                claims: {
-                  sub: `user:default/${userId}`, // ✅ Full entity ref format
-                  ent: [`user:default/${userId}`], // entities - user entity reference
-                },
-              });
-
-              console.log('✅ Token issued successfully for:', userId);
-              return signInResult;
+                  return ctx.signInWithCatalogUser(
+                    { entityRef: fallbackRef },
+                    { dangerousEntityRefFallback: { entityRef: fallbackRef } },
+                  );
+                };
+              },
+              ...commonSignInResolvers,
             },
           }),
         });
@@ -267,5 +281,18 @@ export const authModuleAsgardeoProvider = createBackendModule({
     });
   },
 });
+
+// Export a resolvers map so the auth-backend can pick up the resolver by name
+// The key matches the resolver referenced in your app-config.yaml / app-config.local.yaml
+export const resolvers = {
+  // keep same resolver name used in config so no config changes needed
+  emailMatchingUserEntityNameProfile: async (params: any) =>
+    emailMatchingUserEntityNameProfileResolver({
+      profile: params.profile,
+      // In the auth-backend environment the Catalog client is available as params.catalogClient.
+      // If your module wiring provides it under a different name, adjust accordingly.
+      catalogClient: params.catalogClient,
+    }),
+};
 
 export default authModuleAsgardeoProvider;
